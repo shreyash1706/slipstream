@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Streamer MVP</title>
+    <style>
+        body { background: #111; color: #fff; font-family: sans-serif; padding: 20px; }
+        video { width: 100%; max-width: 600px; background: #000; border: 1px solid #333; }
+        .controls { margin-bottom: 20px; }
+        button { padding: 10px 15px; margin-right: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>P2P Streamer MVP</h1>
+    <div class="controls">
+        <button id="start-stream">1. Start Stream (Host)</button>
+        <button id="connect-peer">2. Connect (Viewer)</button>
+    </div>
+    <div>
+        <h3>Local Video Feed</h3>
+        <video id="local-video" autoplay playsinline muted></video>
+    </div>
+    <div>
+        <h3>Remote Video Feed</h3>
+        <video id="remote-video" autoplay playsinline></video>
+    </div>
+
+    <script src="client.js"></script>
+</body>
+</html>
