@@ -28,7 +28,10 @@ async function startStream(){
 			noiseSuppression: false,
 			autoGainControl: false,
 			channelCount: 2 // Enforces Stereo sound instead of Mono!
-		        }
+		        },
+			surfaceSwitching: 'include',
+			systemAudio: 'include',
+			windowAudio: 'system'
 		});
 
 		const track = localStream.getVideoTracks()[0];
@@ -60,8 +63,25 @@ function createPeerConnection() {
 
 	//const localStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate : { ideal: 60 , max : 120}}});
 	if (localStream){
-		localStream.getTracks().forEach((track) => {
-			peerConnection.addTrack(track,localStream);
+		localStream.getTracks().forEach(async (track) => {
+			// capture sender RTCRtpSender object
+			const sender = peerConnection.addTrack(track,localStream);
+
+			if (track.kind === 'video'){
+				try {
+					const params = sender.getParameters();
+
+					if (params.encodings.length >= 1){
+						params.encodings[0].maxBitrate = 20000000;
+						params.encodings[0].priority = "high";
+					}
+
+					await sender.setParameters(params);
+				}catch(e){
+					console.error("Failed to set high bitrate parameters:", e);
+				}
+			}
+			
 		});
 	}
 }
