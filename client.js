@@ -1,4 +1,4 @@
-const socket = new WebSocket('ws://localhost:8080');
+const socket = new WebSocket('wss://slipstream-pyp0.onrender.com');
 
 socket.onopen = () => console.log('Connected to signaling server cleanly!');
 // holds our stream and connection 
