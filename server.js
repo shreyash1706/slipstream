@@ -7,8 +7,9 @@ const wss = new WebSocketServer({
 });
 console.log(`Signaling server running on port ${PORT}`);
 
+
 wss.on('connection', function connection(ws) {
-	ws.on('error', console.error);
+	console.log('Client connected');
 
 	ws.on('message', function message(data, isBinary){
 		wss.clients.forEach(function each(client){
@@ -17,6 +18,16 @@ wss.on('connection', function connection(ws) {
 			}
 		});
 	});
+	
+	ws.on('close', () => {
+		console.log('Client disconnected cleanly');
+	    });
+
+	ws.on('error', (err) => {
+		console.error('Socket error:', err);
+		ws.terminate(); // Force-kill hanging sockets
+	    });
+
 });
 
 
