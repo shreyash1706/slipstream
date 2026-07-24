@@ -34,8 +34,8 @@ async function startStream(){
 			windowAudio: 'system'
 		});
 
-		const track = localStream.getVideoTracks()[0];
-		track.contentHint = 'motion';
+		//const track = localStream.getVideoTracks()[0];
+		//track.contentHint = 'motion';
 
 		localVideo.srcObject = localStream;
 		console.log("stream started succcessfully!");
@@ -58,8 +58,17 @@ function createPeerConnection() {
 	};
 	//pick the stream and push it to remote peer
 	peerConnection.ontrack = (event) => {
-		remoteVideo.srcObject = event.streams[0];
-	}
+		const receiver = event.receiver;
+
+		if  (receiver && 'jitterBufferTarget' in receiver){
+			receiver.jitterBufferTarget = 250;
+			console.log(`Jitter Buffer set to 250ms for ${event.track.kind} track`);
+		}
+
+		if (remoteVideo.srcObject !== event.streams[0]){
+			remoteVideo.srcObject = event.streams[0];
+		}
+	};
 
 	//const localStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate : { ideal: 60 , max : 120}}});
 	if (localStream){
@@ -71,8 +80,11 @@ function createPeerConnection() {
 				try {
 					const params = sender.getParameters();
 
+					params.degradationPreference = 'balanced';
+
 					if (params.encodings.length >= 1){
 						params.encodings[0].maxBitrate = 20000000;
+						params.encodings[0].minBinrate = 2000000;
 						params.encodings[0].priority = "high";
 					}
 
