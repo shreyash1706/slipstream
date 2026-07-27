@@ -9,6 +9,7 @@ const rtcConfig = {
 
 let peerConnection = null;
 let localStream = null;
+let userStream = null;
 
 socket.onopen = () => console.log('✅ Connected to signaling server cleanly!');
 
@@ -239,10 +240,28 @@ function meetApp() {
             this.chatInput = '';
         },
 
-        joinRoom() {
+        async joinRoom() {
             if (!this.roomId) return;
             this.inRoom = true;
             console.log(`Joined room: ${this.roomId}`);
+
+            try{
+		    userStream = await navigator.mediaDevices.getUserMedia({
+				video: true,
+				audio: true
+			});
+	    } catch (e) {
+		    console.error("Error accessing media devices.", error);
+	    }
+	    
+		this.peers.push({
+			id: 'local-host',
+			name: 'You',
+			stream: userStream,
+			isLocal: true
+		});
+
+
         },
 
         leaveRoom() {
