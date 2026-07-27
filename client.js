@@ -132,6 +132,45 @@ function meetApp() {
                     }
                 });
             }
+		
+	    if (userStream){
+		userStream.getTracks().forEach(async (track) => {
+                    const sender = peerConnection.addTrack(track, userStream);
+
+		if (track.kind === 'video') {
+                        try {
+                            const params = sender.getParameters();
+                            params.degradationPreference = 'balanced';
+
+                            if (params.encodings && params.encodings.length >= 1) {
+				    if (this.isSharingScreen){
+					params.encodings[0].maxBitrate = 600000; 
+				    } else{
+					params.encodings[0].maxBitrate = 2000000; 
+				    }
+                            }
+                            await sender.setParameters(params);
+                            console.log("max bitrate cap at 600kbps!");
+                        } catch (e) {
+                            console.error("Failed to cap user bitrate:", e);
+                        }
+                    }
+		if (track.kind === 'audio'){
+			try{
+				const params = sender.getParameters();
+			    if (params.encodings && params.encodings.length >= 1) {
+				    params.encodings[0].priority = "very-high";
+			    }
+				await sender.setParameters(params);
+			} catch (e) {
+				console.error("Failed to set high audio priority", e);
+			}
+		}
+                });
+            }
+
+
+	
         },
 
         // ==========================================
@@ -166,7 +205,7 @@ function meetApp() {
 
                 // Push our local stream to the Alpine grid so you see yourself!
                 this.peers.push({
-                    id: 'local-host',
+                    id: 'local-screen',
                     name: 'You (Streamer)',
                     stream: localStream,
                     isLocal: true
@@ -187,6 +226,36 @@ function meetApp() {
                 console.error("Error accessing display media:", error);
                 this.isSharingScreen = false;
             }
+		// 1. Safety Check: Only adjust if we actually have an active call and webcam!
+		if (peerConnection && userStream) {
+		    try {
+			// 2. Find the exact RTCRtpSender handling your physical webcam
+			const camVideoTrack = userStream.getVideoTracks()[0];
+			const camSender = peerConnection.getSenders().find(s => s.track === camVideoTrack);
+
+			if (camSender) {
+			    const params = camSender.getParameters();
+			    if (params.encodings && params.encodings.length >= 1) {
+				
+				// 3. THE GEAR SHIFT: 
+				// If Screen Share just turned ON -> Cap cam at 600 kbps to save bandwidth
+				// If Screen Share just turned OFF -> Boost cam to 2 Mbps (2000000) for HD quality!
+				if (this.isSharingScreen) {
+				    params.encodings[0].maxBitrate = 600000;
+				    console.log("🚦 Screen share active: Dropped webcam cap to 600 kbps");
+				} else {
+				    params.encodings[0].maxBitrate = 2000000;
+				    console.log("🚀 Screen share stopped: Boosted webcam to 2 Mbps HD!");
+				}
+				
+			    }
+			    // 4. Apply the new rules live without dropping the call!
+			    await camSender.setParameters(params);
+			}
+		    } catch (e) {
+			console.error("Failed to dynamically shift webcam bitrate:", e);
+		    }
+		}
         },
 
         async initiateCall() {
@@ -213,17 +282,15 @@ function meetApp() {
 
         toggleMic() {
             this.isMuted = !this.isMuted;
-            const localPeer = this.peers.find(p => p.isLocal);
-            if (localPeer && localPeer.stream) {
-                localPeer.stream.getAudioTracks().forEach(t => t.enabled = !this.isMuted);
+            if (userStream) {
+                userStream.getAudioTracks().forEach(t => t.enabled = !this.isMuted);
             }
         },
 
         toggleCam() {
             this.isCamOff = !this.isCamOff;
-            const localPeer = this.peers.find(p => p.isLocal);
-            if (localPeer && localPeer.stream) {
-                localPeer.stream.getVideoTracks().forEach(t => t.enabled = !this.isCamOff);
+            if (userStream) {
+                userStream.getVideoTracks().forEach(t => t.enabled = !this.isCamOff);
             }
         },
 
