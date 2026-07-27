@@ -1,40 +1,45 @@
+// ==========================================
+// 1. WEBSOCKET SIGNALING & CONFIG
+// ==========================================
 const socket = new WebSocket('wss://slipstream-pyp0.onrender.com');
 
-socket.onopen = () => console.log('Connected to signaling server cleanly!');
-// holds our stream and connection 
-let localStream;
-let peerConnection;
-
-//WebRTC config - pings a free Google STUN server to get IP
 const rtcConfig = {
-	iceServers: [{urls: 'stun:stun.l.google.com:19302'}]
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
 };
 
 let peerConnection = null;
 let localStream = null;
 let userStream = null;
 
-startStreamBtn.addEventListener('click',startStream)
-connectPeerBtn.addEventListener('click',initiateCall)
+socket.onopen = () => console.log('✅ Connected to signaling server cleanly!');
 
-async function startStream(){
-	try{
-		localStream = await navigator.mediaDevices.getDisplayMedia({
-			//put MediaConstraints later
-			video: { frameRate: { ideal: 60, max: 120 } },
-		        audio: {
-			echoCancellation: false,
-			noiseSuppression: false,
-			autoGainControl: false,
-			channelCount: 2 // Enforces Stereo sound instead of Mono!
-		        },
-			surfaceSwitching: 'include',
-			systemAudio: 'include',
-			windowAudio: 'system'
-		});
+// ==========================================
+// 2. ALPINE.JS REACTIVE APPLICATION SCOPE
+// ==========================================
+function meetApp() {
+    return {
+        // --- UI STATE ---
+        roomId: 'room-101',
+        inRoom: false,
+        isMuted: false,
+        isCamOff: false,
+        isSharingScreen: false,
+        isChatOpen: false,
+        unreadCount: 0,
+        chatInput: '',
+        
+        // --- MEDIA STATE ---
+        peers: [],         // Array of connected users { id, name, stream, isLocal }
+        pinnedPeer: null,  // Holds the peer object if someone is spotlighted
+        messages: [],      // Array of chat messages { id, sender, text, isSelf }
 
-		//const track = localStream.getVideoTracks()[0];
-		//track.contentHint = 'motion';
+        // --- INIT ---
+        init() {
+            console.log("🚀 Alpine MeetApp Initialized!");
+            
+            // 1. Wire up WebSocket message handling to talk to Alpine's state
+            socket.onmessage = async (event) => {
+                const message = JSON.parse(event.data);
 
                 if (message.type === 'offer') {
                     console.log("📥 Received an offer! Creating answer...");
@@ -264,108 +269,3 @@ async function startStream(){
         }
     };
 }
-
-function createPeerConnection() { 
-	peerConnection = new RTCPeerConnection(rtcConfig);
-
-	peerConnection.onicecandidate = (event) => {
-		if (event.candidate !== null) {
-			//send ICE candidate over ws connection 
-			socket.send(JSON.stringify({
-				type: 'ice-candidate',
-				candidate: (event.candidate)
-			}));
-		}
-	};
-	//pick the stream and push it to remote peer
-	peerConnection.ontrack = (event) => {
-		const receiver = event.receiver;
-
-		if  (receiver && 'jitterBufferTarget' in receiver){
-			receiver.jitterBufferTarget = 250;
-			console.log(`Jitter Buffer set to 250ms for ${event.track.kind} track`);
-		}
-
-		if (remoteVideo.srcObject !== event.streams[0]){
-			remoteVideo.srcObject = event.streams[0];
-		}
-	};
-
-	//const localStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate : { ideal: 60 , max : 120}}});
-	if (localStream){
-		localStream.getTracks().forEach(async (track) => {
-			// capture sender RTCRtpSender object
-			const sender = peerConnection.addTrack(track,localStream);
-
-			if (track.kind === 'video'){
-				try {
-					const params = sender.getParameters();
-
-					params.degradationPreference = 'balanced';
-
-					if (params.encodings.length >= 1){
-						params.encodings[0].maxBitrate = 20000000;
-						params.encodings[0].minBinrate = 2000000;
-						params.encodings[0].priority = "high";
-					}
-
-					await sender.setParameters(params);
-				}catch(e){
-					console.error("Failed to set high bitrate parameters:", e);
-				}
-			}
-			
-		});
-	}
-}
-
-//created an offer(how to communicate and details) sign it and send it over websocket 
-async function initiateCall(){
-	createPeerConnection();
-	
-	peerConnection.createOffer().then((offer) => peerConnection.setLocalDescription(offer)).then(() => {
-		socket.send(JSON.stringify({
-			type : 'offer',
-			sdp : peerConnection.localDescription,
-		}));
-		console.log("Offer created and sent successfully");
-	})
-	.catch((e) => {
-		console.error("Error Creating Offer", e);
-	});
-}
-
-// signaling logic - handling incoming messages 
-socket.onmessage = async (event) => {
-	const message = JSON.parse(event.data);
-
-	if (message.type == 'offer'){
-		console.log("Received an offer! Creating answer...");
-
-		createPeerConnection();
-		peerConnection
-			.setRemoteDescription(message.sdp)
-			.then(()=> peerConnection.createAnswer()
-				.then((answer) => peerConnection.setLocalDescription(answer)).then(() => {
-					socket.send(JSON.stringify({
-						type : 'answer',
-						sdp : peerConnection.localDescription,
-					}));
-				}))
-
-	} else if (message.type == 'answer') { 
-		console.log("Received an answer! Establishing connection...");
-		peerConnection.setRemoteDescription(message.sdp);
-
-	} else if (message.type == 'ice-candidate'){
-		console.log("Received an ICE candidate!");
-		peerConnection.addIceCandidate(message.candidate).catch((e) => {
-	      console.log(`Failure during addIceCandidate(): ${e.name}`);
-	    });
-	}
-};
-
-
-	
-
-
