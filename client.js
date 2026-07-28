@@ -93,12 +93,14 @@ function meetApp() {
                     console.log(`🛡️ Jitter Buffer locked at 250ms for ${event.track.kind} track`);
                 }
 
+		const incomingStream = event.streams[0]; 
+		const uniquePeerId = `remote-${incomingStream.id}`;    
                 // Check if this peer is already in our UI grid
                 const existingPeer = this.peers.find(p => p.id === 'remote-viewer');
                 if (!existingPeer) {
                     console.log("📺 Adding remote peer stream to Alpine grid!");
                     this.peers.push({
-                        id: 'remote-viewer',
+                        id: uniquePeerId,
                         name: 'Connected Peer',
                         stream: event.streams[0],
                         isLocal: false
@@ -267,6 +269,7 @@ function meetApp() {
                 
                 socket.send(JSON.stringify({
                     type: 'offer',
+			roomID: this.roomId,
                     sdp: peerConnection.localDescription,
                 }));
                 console.log("📤 Offer created and sent successfully over WebSocket!");
@@ -317,16 +320,20 @@ function meetApp() {
 				video: true,
 				audio: true
 			});
-	    } catch (e) {
-		    console.error("Error accessing media devices.", error);
-	    }
-	    
-		this.peers.push({
+
+		    this.peers.push({
 			id: 'local-host',
 			name: 'You',
 			stream: userStream,
 			isLocal: true
 		});
+
+		    this.initiateCall();
+	    } catch (e) {
+		    console.error("Error accessing media devices.", error);
+	    }
+	    
+		
 
 
         },
