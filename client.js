@@ -1,6 +1,7 @@
 // ==========================================
 // 1. WEBSOCKET SIGNALING & CONFIG
 // ==========================================
+const myClientId = Math.random().toString(36).substring(2,9); // personal tab id 
 const socket = new WebSocket('wss://slipstream-pyp0.onrender.com');
 
 const rtcConfig = {
@@ -41,6 +42,18 @@ function meetApp() {
             socket.onmessage = async (event) => {
                 const message = JSON.parse(event.data);
 
+                if (message.clientId == myClientId){
+                    //ignore loop back messages to ourselves 
+                    console.log('blocked self loop');
+                    return;
+                }
+
+                if (message.roomId && message.roomId !== this.roomId){
+                    //block signaling packet from another room 
+                    return; 
+                }
+
+
                 if (message.type === 'offer') {
                     console.log("📥 Received an offer! Creating answer...");
                     this.createPeerConnection();
@@ -78,6 +91,8 @@ function meetApp() {
                 if (event.candidate !== null) {
                     socket.send(JSON.stringify({
                         type: 'ice-candidate',
+                        clientId: myClientId,
+                        roomId: this.roomId,
                         candidate: event.candidate
                     }));
                 }
@@ -93,8 +108,8 @@ function meetApp() {
                     console.log(`🛡️ Jitter Buffer locked at 250ms for ${event.track.kind} track`);
                 }
 
-		const incomingStream = event.streams[0]; 
-		const uniquePeerId = `remote-${incomingStream.id}`;    
+                const incomingStream = event.streams[0]; 
+                const uniquePeerId = `remote-${incomingStream.id}`;    
                 // Check if this peer is already in our UI grid
                 const existingPeer = this.peers.find(p => p.id === 'remote-viewer');
                 if (!existingPeer) {
@@ -269,7 +284,8 @@ function meetApp() {
                 
                 socket.send(JSON.stringify({
                     type: 'offer',
-			roomID: this.roomId,
+                    clientId: myClientId,
+                    roomId: this.roomId,
                     sdp: peerConnection.localDescription,
                 }));
                 console.log("📤 Offer created and sent successfully over WebSocket!");
