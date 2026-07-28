@@ -161,7 +161,7 @@ function meetApp() {
 			try{
 				const params = sender.getParameters();
 			    if (params.encodings && params.encodings.length >= 1) {
-				    params.encodings[0].priority = "very-high";
+				    params.encodings[0].priority = "high";
 			    }
 				await sender.setParameters(params);
 			} catch (e) {
@@ -330,7 +330,7 @@ function meetApp() {
 
 		    this.initiateCall();
 	    } catch (e) {
-		    console.error("Error accessing media devices.", error);
+		    console.error("Error accessing media devices.", e);
 	    }
 	    
 		
