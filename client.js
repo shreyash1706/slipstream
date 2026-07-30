@@ -71,12 +71,12 @@ function meetApp() {
                     }));
 
                 } else if (message.type === 'answer') {
-                    console.log("📥 Received an answer! Establishing connection...");
+                    console.log(" Received an answer! Establishing connection...");
                     await peerConnection.setRemoteDescription(message.sdp);
 				    await processIceQueue();
 
                 } else if (message.type === 'ice-candidate') {
-                    console.log("🧊 Received an ICE candidate!");
+                    console.log("Received an ICE candidate!");
 					const candidate = new RTCIceCandidate(message.candidate);
 
 					if (peerConnection && perrConnection.remoteDescription && peerConnection.remoteDescription.type) {
@@ -205,17 +205,7 @@ function meetApp() {
 	
         },
 
-	async function processIceQueue(){
-		while(iceCandidateQueue.length>0){
-			const candidate = iceCandidateQueue.shift();
-			try{
-				await peerConnection.addIceCandidate(candidate);
-				console.log("processed queued candidate");
-			} catch(e) { 
-				console.error('failed adding queued ICE',e);
-			}
-		}
-	},
+        
 
         // ==========================================
         // 4. MEDIA & UI ACTIONS
@@ -389,3 +379,15 @@ function meetApp() {
         }
     };
 }
+
+async function processIceQueue(){
+            while(iceCandidateQueue.length>0){
+                const candidate = iceCandidateQueue.shift();
+                try{
+                    await peerConnection.addIceCandidate(candidate);
+                    console.log("processed queued candidate");
+                } catch(e) { 
+                    console.error('failed adding queued ICE',e);
+                }
+            }
+        }
