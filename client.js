@@ -11,6 +11,7 @@ const rtcConfig = {
 let peerConnection = null;
 let localStream = null;
 let userStream = null;
+let iceCandidateQueue = [];
 
 socket.onopen = () => console.log('✅ Connected to signaling server cleanly!');
 
@@ -59,6 +60,8 @@ function meetApp() {
                     this.createPeerConnection();
                     
                     await peerConnection.setRemoteDescription(message.sdp);
+				    await processIceQueue(); 
+		
                     const answer = await peerConnection.createAnswer();
                     await peerConnection.setLocalDescription(answer);
                     
@@ -70,13 +73,25 @@ function meetApp() {
                 } else if (message.type === 'answer') {
                     console.log("📥 Received an answer! Establishing connection...");
                     await peerConnection.setRemoteDescription(message.sdp);
+				    await processIceQueue();
 
                 } else if (message.type === 'ice-candidate') {
                     console.log("🧊 Received an ICE candidate!");
-                    peerConnection.addIceCandidate(message.candidate).catch((e) => {
-                        console.error(`Failure during addIceCandidate(): ${e.name}`);
-                    });
-                }
+					const candidate = new RTCIceCandidate(message.candidate);
+
+					if (peerConnection && perrConnection.remoteDescription && peerConnection.remoteDescription.type) {
+						peerConnection.addIceCandidate(message.candidate).catch((e) => {
+							console.error(`Failure during addIceCandidate(): ${e.name}`);
+						});
+					} else{
+						console.log("Remote desc not set, queueing ICE.");
+						iceCandidateQueue.push(candidate);
+					}
+                } else if (message.type == 'user-joined') { 
+					console.log("New user joined, initiating call with all active streams");
+					iceCandidateQueue = [];
+					this.initiateCall();
+				}
             };
         },
 
@@ -189,6 +204,18 @@ function meetApp() {
 
 	
         },
+
+	async function processIceQueue(){
+		while(iceCandidateQueue.length>0){
+			const candidate = iceCandidateQueue.shift();
+			try{
+				await peerConnection.addIceCandidate(candidate);
+				console.log("processed queued candidate");
+			} catch(e) { 
+				console.error('failed adding queued ICE',e);
+			}
+		}
+	},
 
         // ==========================================
         // 4. MEDIA & UI ACTIONS
@@ -344,7 +371,10 @@ function meetApp() {
 			isLocal: true
 		});
 
-		    this.initiateCall();
+		    socket.send(JSON.stringify({
+            type: 'join-room',
+            roomId: this.roomId
+        }));
 	    } catch (e) {
 		    console.error("Error accessing media devices.", e);
 	    }
