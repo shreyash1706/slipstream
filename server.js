@@ -40,7 +40,7 @@ wss.on('connection', function connection(ws) {
 			}
 
 			if (currentRoom && rooms.has(currentRoom)) {
-				rooms.get((currentRoom).forEach(client => {
+				rooms.get(currentRoom).forEach(client => {
 					if (client !== ws && client.readyState == Websocket.OPEN){
 						client.send(JSON.stringify(data));
 					}
