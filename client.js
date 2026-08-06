@@ -79,7 +79,7 @@ function meetApp() {
                     console.log("Received an ICE candidate!");
 					const candidate = new RTCIceCandidate(message.candidate);
 
-					if (peerConnection && perrConnection.remoteDescription && peerConnection.remoteDescription.type) {
+					if (peerConnection && peerConnection.remoteDescription && peerConnection.remoteDescription.type) {
 						peerConnection.addIceCandidate(message.candidate).catch((e) => {
 							console.error(`Failure during addIceCandidate(): ${e.name}`);
 						});
@@ -126,8 +126,7 @@ function meetApp() {
                 const incomingStream = event.streams[0]; 
                 const uniquePeerId = `remote-${incomingStream.id}`;    
                 // Check if this peer is already in our UI grid
-                const existingPeer = this.peers.find(p => p.id === 'remote-viewer');
-                if (!existingPeer) {
+                const existingPeer = this.peers.find(p => p.id === uniquePeerId);             				  if (!existingPeer) {
                     console.log("📺 Adding remote peer stream to Alpine grid!");
                     this.peers.push({
                         id: uniquePeerId,

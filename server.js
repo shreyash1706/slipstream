@@ -34,14 +34,14 @@ wss.on('connection', function connection(ws) {
 					}
 				});
 
-				roomClient.add(ws);
+				roomClients.add(ws);
 				console.log(`Client joined ${currentRoom}. Total: ${roomClients.size}`);
 				return;
 			}
 
 			if (currentRoom && rooms.has(currentRoom)) {
 				rooms.get(currentRoom).forEach(client => {
-					if (client !== ws && client.readyState == Websocket.OPEN){
+					if (client !== ws && client.readyState == WebSocket.OPEN){
 						client.send(JSON.stringify(data));
 					}
 				});
