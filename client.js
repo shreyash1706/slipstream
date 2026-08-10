@@ -34,6 +34,7 @@ function meetApp() {
         peers: [],         // Array of connected users { id, name, stream, isLocal }
         pinnedPeer: null,  // Holds the peer object if someone is spotlighted
         messages: [],      // Array of chat messages { id, sender, text, isSelf }
+		screenShareStreamIds: new Set(),
 
         // --- INIT ---
         init() {
@@ -62,19 +63,24 @@ function meetApp() {
                     await peerConnection.setRemoteDescription(message.sdp);
 				    await processIceQueue(); 
 		
+					if (message.screenShareStreamId) this.screenShareIds.add(message.screenShareStreamId);
                     const answer = await peerConnection.createAnswer();
                     await peerConnection.setLocalDescription(answer);
                     
                     socket.send(JSON.stringify({
                         type: 'answer',
                         sdp: peerConnection.localDescription,
+						clientId: myClientId,
+						roomId: this.roomId,
+						screenShareId: localStream ? localStream.id : null
+
                     }));
 
                 } else if (message.type === 'answer') {
                     console.log(" Received an answer! Establishing connection...");
                     await peerConnection.setRemoteDescription(message.sdp);
 				    await processIceQueue();
-
+					if (message.screenShareStreamId) this.screenShareIds.add(message.screenShareStreamId);
                 } else if (message.type === 'ice-candidate') {
                     console.log("Received an ICE candidate!");
 					const candidate = new RTCIceCandidate(message.candidate);
@@ -88,7 +94,7 @@ function meetApp() {
 						iceCandidateQueue.push(candidate);
 					}
                 } else if (message.type == 'user-joined') { 
-					console.log("New user joined, initiating call with all active streams");
+					console.log("New user joined, ,nitiating call with all active streams");
 					iceCandidateQueue = [];
 					this.initiateCall();
 				}
@@ -116,14 +122,18 @@ function meetApp() {
             // Catch incoming peer video/audio and push to Alpine UI!
             peerConnection.ontrack = (event) => {
                 const receiver = event.receiver;
+				const incomingStream = event.streams[0];
 
                 // Apply our 250ms shock absorber for cellular jitter!
-                if (receiver && 'jitterBufferTarget' in receiver) {
-                    receiver.jitterBufferTarget = 250;
-                    console.log(`🛡️ Jitter Buffer locked at 250ms for ${event.track.kind} track`);
-                }
+				if (this.screenShareStreamIds.has(incomingStream.id){
+					if (receiver && 'jitterBufferTarget' in receiver) {
+						receiver.jitterBufferTarget = 250;
+						console.log(`screen share! Jitter Buffer at 250ms for ${event.track.kind} track`);
+					}
+				} else { 
+						console.log(` Webcam detected! Letting the browser auto-manage the jitter buffer.`);
+    }
 
-                const incomingStream = event.streams[0]; 
                 const uniquePeerId = `remote-${incomingStream.id}`;    
                 // Check if this peer is already in our UI grid
                 const existingPeer = this.peers.find(p => p.id === uniquePeerId);             				  if (!existingPeer) {
@@ -303,6 +313,7 @@ function meetApp() {
                     clientId: myClientId,
                     roomId: this.roomId,
                     sdp: peerConnection.localDescription,
+					screenShareId: localStream ? localStream.id : null
                 }));
                 console.log("📤 Offer created and sent successfully over WebSocket!");
             } catch (e) {
