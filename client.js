@@ -12,6 +12,7 @@ let peerConnection = null;
 let localStream = null;
 let userStream = null;
 let iceCandidateQueue = [];
+let dataChannel = null; 
 
 socket.onopen = () => console.log('✅ Connected to signaling server cleanly!');
 
@@ -35,6 +36,7 @@ function meetApp() {
         pinnedPeer: null,  // Holds the peer object if someone is spotlighted
         messages: [],      // Array of chat messages { id, sender, text, isSelf }
 		screenShareStreamIds: new Set(),
+		
 
         // --- INIT ---
         init() {
@@ -107,6 +109,15 @@ function meetApp() {
         createPeerConnection() {
             peerConnection = new RTCPeerConnection(rtcConfig);
 
+			//caller creates the datachannel
+			dataChannel = peerConnection.createDataChannel("appControlandChat");
+			this.setupDataChannel(dataChannel);
+
+			//callee listens for incoming data channel 
+			peerConnection.ondatachannel = (event) => {
+				dataChannel = event.channel;
+				this.setupDataChannel(dataChannel); 
+			};
             // Send ICE candidates over WebSocket
             peerConnection.onicecandidate = (event) => {
                 if (event.candidate !== null) {
@@ -215,6 +226,36 @@ function meetApp() {
         },
 
         
+		setupDataChannel(channel){
+			channel.onopen = () => console.log("Data Channel connected");
+			channel.onclose = () => console.log("Data Channel closed");
+
+			channel.onmessage = (event) => {
+				const msg = JSON.parse(event.data);
+
+				if (msg.type === 'chat') { 
+					this.message.push({
+						id: Data.now(),
+						sender: msg.senderName || 'Peer',
+						text: msg.text, 
+						isSelf: false
+					}); 
+				if (!this.isChatOpen) this.unreadCount++;
+				}
+
+				else if (msg.type === 'stream-stop'){
+					console.log(`cleaning stopped stream: ${msg.streamId}`);
+					const targetId = `remote-${msg.streamId}`;
+
+					this.peers = this.peers.filter(p=> p.id == targetId);
+
+					if (this.pinnedPeer?.id === targetId){
+						this.pinnedPeer = null;
+					} 
+				}
+			};
+		},
+
 
         // ==========================================
         // 4. MEDIA & UI ACTIONS
@@ -223,9 +264,16 @@ function meetApp() {
             // If already streaming, stop it
             if (this.isSharingScreen && localStream) {
                 localStream.getTracks().forEach(track => track.stop());
-                this.peers = this.peers.filter(p => !p.isLocal);
+                this.peers = this.peers.filter(p => p.id !== 'local-screen');
                 this.isSharingScreen = false;
-                console.log("🛑 Stopped screen share.");
+				if (dataChannel && dataChannel.readyState === 'open') {
+                    dataChannel.send(JSON.stringify({
+                        type: 'stream-stopped',
+                        streamId: localStream.id
+                    }));
+                }
+
+                console.log("Stopped screen share.");
                 return;
             }
 
@@ -342,6 +390,8 @@ function meetApp() {
 
         sendMessage() {
             if (!this.chatInput.trim()) return;
+
+			const text = this.chatInput.trim();
             
             this.messages.push({
                 id: Date.now(),
@@ -349,6 +399,14 @@ function meetApp() {
                 text: this.chatInput,
                 isSelf: true
             });
+
+			if (dataChannel && dataChannel.readyState == 'open'){
+				dataChannel.send(JSON.stringify({
+					type: 'chat',
+					senderName: 'ConnectedPeer', 
+					text: text
+				}));
+			}
             
             this.chatInput = '';
         },
