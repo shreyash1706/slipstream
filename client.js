@@ -243,7 +243,7 @@ function meetApp() {
 				if (!this.isChatOpen) this.unreadCount++;
 				}
 
-				else if (msg.type === 'stream-stop'){
+				else if (msg.type === 'stream-stopped'){
 					console.log(`cleaning stopped stream: ${msg.streamId}`);
 					const targetId = `remote-${msg.streamId}`;
 
