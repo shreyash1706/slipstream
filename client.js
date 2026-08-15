@@ -136,7 +136,7 @@ function meetApp() {
 				const incomingStream = event.streams[0];
 
                 // Apply our 250ms shock absorber for cellular jitter!
-				if (this.screenShareStreamIds.has(incomingStream.id){
+				if (this.screenShareStreamIds.has(incomingStream.id)){
 					if (receiver && 'jitterBufferTarget' in receiver) {
 						receiver.jitterBufferTarget = 250;
 						console.log(`screen share! Jitter Buffer at 250ms for ${event.track.kind} track`);
@@ -302,7 +302,7 @@ function meetApp() {
                     isLocal: true
                 });
 
-                console.log("🚀 Screen share started successfully!");
+                console.log(" Screen share started successfully!");
 
                 // Automatically initiate the call to waiting peers!
                 this.initiateCall();
