@@ -234,8 +234,8 @@ function meetApp() {
 				const msg = JSON.parse(event.data);
 
 				if (msg.type === 'chat') { 
-					this.message.push({
-						id: Data.now(),
+					this.messages.push({
+						id: Date.now(),
 						sender: msg.senderName || 'Peer',
 						text: msg.text, 
 						isSelf: false
@@ -247,7 +247,7 @@ function meetApp() {
 					console.log(`cleaning stopped stream: ${msg.streamId}`);
 					const targetId = `remote-${msg.streamId}`;
 
-					this.peers = this.peers.filter(p=> p.id == targetId);
+					this.peers = this.peers.filter(p=> p.id !== targetId);
 
 					if (this.pinnedPeer?.id === targetId){
 						this.pinnedPeer = null;
